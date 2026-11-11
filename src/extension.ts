@@ -1,11 +1,11 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { findConditionFoldingRanges } from './folding';
+import { findPhpFoldingRanges } from './folding';
 export function activate(context: vscode.ExtensionContext): void {
 	context.subscriptions.push(vscode.languages.registerFoldingRangeProvider({ language: 'php' }, {
 		provideFoldingRanges(document: vscode.TextDocument): vscode.FoldingRange[] {
-			return findConditionFoldingRanges(document.getText()).map(
+			return findPhpFoldingRanges(document.getText()).map(
 				range => new vscode.FoldingRange(range.startLine, range.endLine, vscode.FoldingRangeKind.Region),
 			);
 		},

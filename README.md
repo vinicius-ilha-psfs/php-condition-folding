@@ -1,6 +1,6 @@
-# PHP Condition Folding
+# PHP Folding
 
-Folds multiline conditions in PHP `if` statements using VS Code's native folding support.
+Folds multiline PHP control expressions and function argument lists using VS Code's native folding support.
 
 ## Features
 
@@ -16,7 +16,7 @@ if (
 }
 ```
 
-The condition can be collapsed to `if ( ... ) {` while the body remains visible. The provider is automatically enabled for PHP files; no configuration or command is required.
+The condition can be collapsed while the line holding the closing parenthesis stays visible, so `) {` and anything else on that line are never hidden. Multiline argument lists in function declarations and calls, and the expressions of `for`, `foreach`, and `while` statements are folded in the same way. The provider is automatically enabled for PHP files; no configuration or command is required.
 
 \!\[feature X\]\(images/feature-x.png\)
 

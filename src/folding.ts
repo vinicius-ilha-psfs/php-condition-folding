@@ -1,12 +1,18 @@
-export interface ConditionFoldingRange {
+export interface PhpFoldingRange {
 	startLine: number;
 	endLine: number;
 }
 
 type ScannerState = 'code' | 'singleQuote' | 'doubleQuote' | 'lineComment' | 'blockComment';
 
-export function findConditionFoldingRanges(source: string): ConditionFoldingRange[] {
-	const ranges: ConditionFoldingRange[] = [];
+const CONTROL_KEYWORDS = new Set(['if', 'for', 'foreach', 'while']);
+const NON_CALL_KEYWORDS = new Set([
+	'array', 'clone', 'echo', 'empty', 'eval', 'exit', 'include', 'include_once', 'isset', 'list',
+	'match', 'print', 'require', 'require_once', 'return', 'throw', 'unset', 'yield',
+]);
+
+export function findPhpFoldingRanges(source: string): PhpFoldingRange[] {
+	const ranges: PhpFoldingRange[] = [];
 	let state: ScannerState = 'code';
 	let line = 0;
 
@@ -34,28 +40,36 @@ export function findConditionFoldingRanges(source: string): ConditionFoldingRang
 		if (character === '/' && nextCharacter === '*') { state = 'blockComment'; index++; continue; }
 		if (character === "'") { state = 'singleQuote'; continue; }
 		if (character === '"') { state = 'doubleQuote'; continue; }
-		if (!isWordAt(source, index, 'if')) { continue; }
+		if (character !== '(' || !isFoldableParenthesis(source, index)) { continue; }
 
-		let openingIndex = index + 2;
-		while (/\s/.test(source[openingIndex] ?? '')) { openingIndex++; }
-		if (source[openingIndex] !== '(') { continue; }
-		const closing = findClosingParenthesis(source, openingIndex);
+		const closing = findClosingParenthesis(source, index);
 		if (closing === undefined) { continue; }
-		const endLine = lineAt(source, closing);
+		// VS Code folds whole lines, so the range must stop before the line holding
+		// the closing parenthesis to keep it (and anything else on that line) visible.
+		const endLine = lineAt(source, closing) - 1;
 		if (endLine > line) { ranges.push({ startLine: line, endLine }); }
-		index = openingIndex;
 	}
 
 	return ranges;
 }
 
-function isWordAt(source: string, index: number, word: string): boolean {
-	return source.slice(index, index + word.length) === word &&
-		!isWordCharacter(source[index - 1]) && !isWordCharacter(source[index + word.length]);
+function isFoldableParenthesis(source: string, openingIndex: number): boolean {
+	const precedingWord = findPrecedingWord(source, openingIndex);
+	if (precedingWord === undefined) { return false; }
+
+	const normalizedWord = precedingWord.toLowerCase();
+	return CONTROL_KEYWORDS.has(normalizedWord) ||
+		normalizedWord === 'function' ||
+		!NON_CALL_KEYWORDS.has(normalizedWord);
 }
 
-function isWordCharacter(character: string | undefined): boolean {
-	return character !== undefined && /[\w\\]/.test(character);
+function findPrecedingWord(source: string, index: number): string | undefined {
+	let end = index;
+	while (/\s/.test(source[end - 1] ?? '')) { end--; }
+
+	let start = end;
+	while (/[\w\\]/.test(source[start - 1] ?? '')) { start--; }
+	return start === end ? undefined : source.slice(start, end);
 }
 
 function findClosingParenthesis(source: string, openingIndex: number): number | undefined {
@@ -87,5 +101,9 @@ function findClosingParenthesis(source: string, openingIndex: number): number | 
 }
 
 function lineAt(source: string, index: number): number {
-	return [...source.slice(0, index)].filter(character => character === '\n').length;
+	let line = 0;
+	for (let current = 0; current < index; current++) {
+		if (source[current] === '\n') { line++; }
+	}
+	return line;
 }
